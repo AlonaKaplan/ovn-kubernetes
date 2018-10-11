@@ -139,6 +139,7 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, netwo
 		fmt.Sprintf("external_ids:ip_address=%s", ipAddress),
 		fmt.Sprintf("external_ids:sandbox=%s", pr.SandboxID),
 	}
+
 	if out, err := ovsExec(ovsArgs...); err != nil {
 		return nil, fmt.Errorf("failure in plugging pod interface: %v\n  %q", err, out)
 	}
@@ -156,6 +157,7 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, netwo
 			return nil, fmt.Errorf("failed to set host veth txqlen: %v", err)
 		}
 
+		// TODO Alona - port name should be used instead of SandboxID
 		if err := setPodBandwidth(pr.SandboxID, hostIface.Name, ingress, egress); err != nil {
 			return nil, err
 		}
@@ -166,17 +168,23 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, netwo
 
 // PlatformSpecificCleanup deletes the OVS port
 func (pr *PodRequest) PlatformSpecificCleanup() error {
-	// TODO alona find the ovs-port with iface-id = pr.CNIConf.Name and remove it
-	ifaceName := pr.SandboxID[:15]
-	ovsArgs := []string{
-		"del-port", "br-int", ifaceName,
-	}
-	out, err := exec.Command("ovs-vsctl", ovsArgs...).CombinedOutput()
-	if err != nil && !strings.Contains(string(out), "no port named") {
-		// DEL should be idempotent; don't return an error just log it
-		logrus.Warningf("failed to delete OVS port %s: %v\n  %q", ifaceName, err, string(out))
+	//networkName := pr.CNIConf.Name
+	var portList []string
+	portList = make([]string, 1)
+	portList[0] = pr.SandboxID[:15]
+
+	for _, ifaceName := range portList {
+		ovsArgs := []string{
+			"del-port", "br-int", ifaceName,
+		}
+		out, err := exec.Command("ovs-vsctl", ovsArgs...).CombinedOutput()
+		if err != nil && !strings.Contains(string(out), "no port named") {
+			// DEL should be idempotent; don't return an error just log it
+			logrus.Warningf("failed to delete OVS port %s: %v\n  %q", ifaceName, err, string(out))
+		}
 	}
 
+	// TODO Alona - port name should be used instead of SandboxID
 	_ = clearPodBandwidth(pr.SandboxID)
 
 	return nil
