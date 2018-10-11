@@ -1,6 +1,7 @@
 package ovn
 
 import (
+	"fmt"
 	"github.com/openvswitch/ovn-kubernetes/go-controller/pkg/factory"
 	"github.com/openvswitch/ovn-kubernetes/go-controller/pkg/kube"
 	util "github.com/openvswitch/ovn-kubernetes/go-controller/pkg/util"
@@ -10,9 +11,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"reflect"
+	"strings"
 	"sync"
-        "strings"
-        "fmt"
 )
 
 // Controller structure is the object which holds the controls for starting
@@ -120,23 +120,23 @@ func (oc *Controller) Run() error {
 
 func (oc *Controller) addDefaultLogicalPort(pod *kapi.Pod) {
 	annotation := oc.addLogicalPort(pod, pod.Spec.NodeName)
-     _, isStaticIP := pod.Annotations["ovn"]
-	if (!isStaticIP) {
-        err := oc.kube.SetAnnotationOnPod(pod, "ovn", annotation)
-        if err != nil {
-            logrus.Errorf("Failed to set annotation on pod %s - %v", pod.Name, err)
-        }
-    }
+	_, isStaticIP := pod.Annotations["ovn"]
+	if !isStaticIP {
+		err := oc.kube.SetAnnotationOnPod(pod, "ovn", annotation)
+		if err != nil {
+			logrus.Errorf("Failed to set annotation on pod %s - %v", pod.Name, err)
+		}
+	}
 }
 
 func (oc *Controller) addLogicalPortsToExtraSwitches(pod *kapi.Pod) {
 	switches := oc.getNetworkNamesFromPodAnnotations(pod.Annotations)
 	if switches != nil {
-        annotations := make(map[string]string)
-	    for _, logicalSwitch := range switches {
+		annotations := make(map[string]string)
+		for _, logicalSwitch := range switches {
 			annotations[logicalSwitch] = oc.addLogicalPort(pod, logicalSwitch)
-        }
-                     
+		}
+
 		ovnExtraAnnotation := fmt.Sprintf("{")
 		for network, networkAnnotation := range annotations {
 			ovnExtraAnnotation = fmt.Sprintf("%s\\\"%s\\\":%s, ", ovnExtraAnnotation, network, networkAnnotation)
@@ -145,10 +145,10 @@ func (oc *Controller) addLogicalPortsToExtraSwitches(pod *kapi.Pod) {
 		ovnExtraAnnotation = strings.TrimSuffix(ovnExtraAnnotation, ", ")
 		ovnExtraAnnotation = fmt.Sprintf("%s}", ovnExtraAnnotation)
 
-	    err:= oc.kube.SetAnnotationOnPod(pod, "ovn_extra", ovnExtraAnnotation)
+		err := oc.kube.SetAnnotationOnPod(pod, "ovn_extra", ovnExtraAnnotation)
 		if err != nil {
 			logrus.Errorf("Failed to set annotation on pod %s - %v", pod.Name, err)
-        }
+		}
 	}
 }
 
@@ -159,15 +159,15 @@ func (oc *Controller) WatchPods() error {
 			pod := obj.(*kapi.Pod)
 			if pod.Spec.NodeName != "" {
 				oc.addLogicalPortsToExtraSwitches(pod)
-                                oc.addDefaultLogicalPort(pod)
+				oc.addDefaultLogicalPort(pod)
 			}
 		},
 		UpdateFunc: func(old, newer interface{}) {
 			podNew := newer.(*kapi.Pod)
 			podOld := old.(*kapi.Pod)
 			if podOld.Spec.NodeName == "" && podNew.Spec.NodeName != "" {
-                                oc.addLogicalPortsToExtraSwitches(podNew)
-				oc.addDefaultLogicalPort(podNew)            
+				oc.addLogicalPortsToExtraSwitches(podNew)
+				oc.addDefaultLogicalPort(podNew)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {

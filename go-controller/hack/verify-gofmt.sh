@@ -18,7 +18,7 @@ find_files() {
 GOFMT="gofmt -s"
 bad_files=$(find_files | xargs $GOFMT -l)
 if [[ -n "${bad_files}" ]]; then
-  echo "!!! '$GOFMT' needs to be run on the following files: "
-  echo "${bad_files}"
-  exit 1
+    $GOFMT -w $bad_files
+    echo "Following files were formatted:"
+    echo "${bad_files}"
 fi

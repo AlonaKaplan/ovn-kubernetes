@@ -243,26 +243,26 @@ func (oc *Controller) getOvnAnnotationMap(ovnAnnotation string) map[string]strin
 }
 
 func (oc *Controller) getNetworkInfoFromOvnAnnotation(ovnAnnotation string, networkName string) map[string]string {
-        if ovnAnnotation == "" {
-            return nil
-		}
+	if ovnAnnotation == "" {
+		return nil
+	}
 
-        var ovnExtraAnnotationMap map[string]map[string]string
-        err := json.Unmarshal([]byte(ovnAnnotation), &ovnExtraAnnotationMap)
-        if err != nil {
-             logrus.Errorf("Error in json unmarshaling ovn annotation  (%v)", err)
-            return nil
-        }
+	var ovnExtraAnnotationMap map[string]map[string]string
+	err := json.Unmarshal([]byte(ovnAnnotation), &ovnExtraAnnotationMap)
+	if err != nil {
+		logrus.Errorf("Error in json unmarshaling ovn annotation  (%v)", err)
+		return nil
+	}
 
-        return ovnExtraAnnotationMap[networkName]
+	return ovnExtraAnnotationMap[networkName]
 }
 
 func (oc *Controller) getNetworkNamesFromPodAnnotations(podAnnotations map[string]string) []string {
-        switches_annotation, hasExtraSwitches := podAnnotations["switches"]
-        if hasExtraSwitches {
-        	switches := strings.Split(switches_annotation, ",") // TODO trim each switch
-        	return switches
-        }
+	switches_annotation, hasExtraSwitches := podAnnotations["switches"]
+	if hasExtraSwitches {
+		switches := strings.Split(switches_annotation, ",") // TODO trim each switch
+		return switches
+	}
 	return nil
 }
 

@@ -62,8 +62,8 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 	namespace := pr.PodNamespace
 	podName := pr.PodName
 
-    networkName := pr.CNIConf.Name
-    logrus.Infof("Adding interface for network = %s", networkName)
+	networkName := pr.CNIConf.Name
+	logrus.Infof("Adding interface for network = %s", networkName)
 
 	if namespace == "" || podName == "" {
 		logrus.Errorf("required CNI variable missing")
@@ -78,10 +78,10 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 	kubecli := &kube.Kube{KClient: clientset}
 
 	isDefaultInterface := networkName == "ovn-kubernetes"
-    ovnAnnotationKey := "ovn"
-    if !isDefaultInterface {
-        ovnAnnotationKey = "ovn_extra"
-    }
+	ovnAnnotationKey := "ovn"
+	if !isDefaultInterface {
+		ovnAnnotationKey = "ovn_extra"
+	}
 
 	// Get the IP address and MAC address from the API server.
 	// Exponential back off ~32 seconds + 7* t(api call)
@@ -103,37 +103,37 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 		return nil
 	}
 
-    var ovnAnnotation string
-    var ok bool
-    var ovnNetworkAnnotatedMap map[string]string
-    if (isDefaultInterface) {
+	var ovnAnnotation string
+	var ok bool
+	var ovnNetworkAnnotatedMap map[string]string
+	if isDefaultInterface {
 		ovnAnnotation, ok = annotation[ovnAnnotationKey]
 		if !ok {
 			logrus.Errorf("failed to get ovn annotation from pod")
 			return nil
 		}
 
-       	err = json.Unmarshal([]byte(ovnAnnotation), &ovnNetworkAnnotatedMap)
-        if err != nil {
-            logrus.Errorf("unmarshal ovn annotation failed")
-	        return nil
-    	}
+		err = json.Unmarshal([]byte(ovnAnnotation), &ovnNetworkAnnotatedMap)
+		if err != nil {
+			logrus.Errorf("unmarshal ovn annotation failed")
+			return nil
+		}
 	} else {
-        ovnExtraAnnotation, ok := annotation[ovnAnnotationKey]
-        if !ok {
-            logrus.Errorf("failed to get ovn_extra annotation from pod")
-            return nil
-        }
-        var ovnExtraAnnotatedMap map[string]map[string]string
+		ovnExtraAnnotation, ok := annotation[ovnAnnotationKey]
+		if !ok {
+			logrus.Errorf("failed to get ovn_extra annotation from pod")
+			return nil
+		}
+		var ovnExtraAnnotatedMap map[string]map[string]string
 
-        err = json.Unmarshal([]byte(ovnExtraAnnotation), &ovnExtraAnnotatedMap)
-        if err != nil {
-            logrus.Errorf("unmarshal ovn_extra annotation failed = %v", err)
-	        return nil
-        }
+		err = json.Unmarshal([]byte(ovnExtraAnnotation), &ovnExtraAnnotatedMap)
+		if err != nil {
+			logrus.Errorf("unmarshal ovn_extra annotation failed = %v", err)
+			return nil
+		}
 
 		ovnNetworkAnnotatedMap, ok = ovnExtraAnnotatedMap[networkName]
-    }
+	}
 
 	ipAddress := ovnNetworkAnnotatedMap["ip_address"]
 	macAddress := ovnNetworkAnnotatedMap["mac_address"]

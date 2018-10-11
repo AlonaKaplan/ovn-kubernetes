@@ -79,7 +79,7 @@ func setupInterface(netns ns.NetNS, hostIfaceName, ifName, macAddress, ipAddress
 		if gw == nil && isDefaultInterface {
 			return fmt.Errorf("parse ip of gateway failed")
 		}
-                if (gw != nil) {
+		if gw != nil {
 			err = ip.AddRoute(nil, gw, link)
 			if err != nil {
 				return err
@@ -112,19 +112,19 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, netwo
 	}
 	defer netns.Close()
 
-        isDefaultInterface := networkName == "ovn-kubernetes" 
-        var ifaceID string
-        var hostIfaceName string
-        if isDefaultInterface {
-                ifaceID = fmt.Sprintf("%s_%s", namespace, podName)
-                hostIfaceName = pr.SandboxID[:15]
-        } else {
-                ifaceID = fmt.Sprintf("%s_%s_%s", namespace, podName, networkName)
-                hostIfaceName, err = ip.RandomVethName()
-                if err != nil {
-                        return nil, err
-                }
-        }
+	isDefaultInterface := networkName == "ovn-kubernetes"
+	var ifaceID string
+	var hostIfaceName string
+	if isDefaultInterface {
+		ifaceID = fmt.Sprintf("%s_%s", namespace, podName)
+		hostIfaceName = pr.SandboxID[:15]
+	} else {
+		ifaceID = fmt.Sprintf("%s_%s_%s", namespace, podName, networkName)
+		hostIfaceName, err = ip.RandomVethName()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	hostIface, contIface, err := setupInterface(netns, hostIfaceName, pr.IfName, macAddress, ipAddress, gatewayIP, mtu, isDefaultInterface)
 	if err != nil {

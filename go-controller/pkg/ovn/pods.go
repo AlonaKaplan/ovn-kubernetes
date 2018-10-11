@@ -2,10 +2,10 @@ package ovn
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"time"
-        "net"
-        "strconv"
 
 	util "github.com/openvswitch/ovn-kubernetes/go-controller/pkg/util"
 	"github.com/sirupsen/logrus"
@@ -26,9 +26,9 @@ func (oc *Controller) syncPods(pods []interface{}) {
 		expectedLogicalPorts[logicalPort] = true
 
 		switches := oc.getNetworkNamesFromPodAnnotations(pod.Annotations)
-		if (switches != nil) {
+		if switches != nil {
 			for _, logicalSwitch := range switches {
-        		logicalPort := fmt.Sprintf("%s_%s_%s", pod.Namespace, pod.Name, logicalSwitch)
+				logicalPort := fmt.Sprintf("%s_%s_%s", pod.Namespace, pod.Name, logicalSwitch)
 				expectedLogicalPorts[logicalPort] = true
 			}
 		}
@@ -129,26 +129,26 @@ func (oc *Controller) getLogicalPortUUID(logicalPort string) string {
 }
 
 func (oc *Controller) getMaskFromSubnet(logicalSwitch string) (string, error) {
-        subnet, stderr, err := util.RunOVNNbctlHA("get", "logical_switch",
-                logicalSwitch, "other-config:subnet")
-        if err != nil {
-                logrus.Errorf("failed to get the logical_switch %s subnet, "+
-                        "stderr: %q (%v)", logicalSwitch, stderr, err)
-                return "", err
-        }
+	subnet, stderr, err := util.RunOVNNbctlHA("get", "logical_switch",
+		logicalSwitch, "other-config:subnet")
+	if err != nil {
+		logrus.Errorf("failed to get the logical_switch %s subnet, "+
+			"stderr: %q (%v)", logicalSwitch, stderr, err)
+		return "", err
+	}
 
-        if subnet == "" {
- 		return "", fmt.Errorf("Empty subnet in logical switch %s",
-                        logicalSwitch)
-        }
+	if subnet == "" {
+		return "", fmt.Errorf("Empty subnet in logical switch %s",
+			logicalSwitch)
+	}
 
-        _, subnetNet, err := net.ParseCIDR(subnet)
-        if err != nil {
-                logrus.Errorf("failed to parse subnet %s", subnet)
-                return "", err
-        }
-        mask, _ := subnetNet.Mask.Size()
-        return strconv.Itoa(mask), nil
+	_, subnetNet, err := net.ParseCIDR(subnet)
+	if err != nil {
+		logrus.Errorf("failed to parse subnet %s", subnet)
+		return "", err
+	}
+	mask, _ := subnetNet.Mask.Size()
+	return strconv.Itoa(mask), nil
 }
 
 func (oc *Controller) getGatewayFromSwitch(logicalSwitch string) (string, string, error) {
@@ -187,23 +187,23 @@ func (oc *Controller) deleteLogicalPort(pod *kapi.Pod) {
 	podLogicalPorts := make(map[string]string)
 	switches := oc.getNetworkNamesFromPodAnnotations(pod.Annotations)
 	if switches != nil {
-	    for _, logicalSwitch := range switches {
-        	podLogicalPorts[logicalSwitch] = fmt.Sprintf("%s_%s_%s", pod.Namespace, pod.Name, logicalSwitch)
+		for _, logicalSwitch := range switches {
+			podLogicalPorts[logicalSwitch] = fmt.Sprintf("%s_%s_%s", pod.Namespace, pod.Name, logicalSwitch)
 		}
 	}
 	podLogicalPorts[""] = fmt.Sprintf("%s_%s", pod.Namespace, pod.Name)
 
 	for logicalSwitch, logicalPort := range podLogicalPorts {
 		out, stderr, err := util.RunOVNNbctlHA("--if-exists", "lsp-del",
-		logicalPort)
+			logicalPort)
 		if err != nil {
 			logrus.Errorf("Error in deleting pod logical port "+
-			"stdout: %q, stderr: %q, (%v)",
-			out, stderr, err)
+				"stdout: %q, stderr: %q, (%v)",
+				out, stderr, err)
 		}
 
 		var ipAddress string
-		if (logicalSwitch == "") {
+		if logicalSwitch == "" {
 			ipAddress = oc.getIPFromOvnAnnotation(pod.Annotations["ovn"])
 		} else {
 			networkAnntationMap := oc.getNetworkInfoFromOvnAnnotation(pod.Annotations["ovn_extra"], logicalSwitch)
@@ -227,7 +227,7 @@ func (oc *Controller) deleteLogicalPort(pod *kapi.Pod) {
 		}
 		oc.deletePodFromNamespaceAddressSet(pod.Namespace, ipAddress)
 	}
-	
+
 	return
 }
 
@@ -237,7 +237,7 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string
 	if pod.Spec.HostNetwork {
 		return ""
 	}
-        
+
 	if logicalSwitch == "" {
 		logrus.Errorf("Failed to find the logical switch for pod %s/%s",
 			pod.Namespace, pod.Name)
@@ -249,27 +249,27 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string
 		oc.addAllowACLFromNode(logicalSwitch)
 	}
 
-        var portName string
-        isDefaultPort := logicalSwitch == pod.Spec.NodeName
-    
-        if isDefaultPort {
+	var portName string
+	isDefaultPort := logicalSwitch == pod.Spec.NodeName
+
+	if isDefaultPort {
 		portName = fmt.Sprintf("%s_%s", pod.Namespace, pod.Name)
-        } else {
+	} else {
 		portName = fmt.Sprintf("%s_%s_%s", pod.Namespace, pod.Name, logicalSwitch)
-        }
+	}
 
 	logrus.Debugf("Creating logical port for %s on switch %s", portName, logicalSwitch)
 
 	var ovnNetworkAnnotatedMap map[string]string
-    var isStaticIP bool
+	var isStaticIP bool
 	if isDefaultPort {
 		var annotation string
 		annotation, isStaticIP = pod.Annotations["ovn"]
 		ovnNetworkAnnotatedMap = oc.getOvnAnnotationMap(annotation)
-    } else {
+	} else {
 		ovnExtraAnnotation, _ := pod.Annotations["ovn_extra"]
 		ovnNetworkAnnotatedMap = oc.getNetworkInfoFromOvnAnnotation(ovnExtraAnnotation, logicalSwitch)
-        isStaticIP = ovnNetworkAnnotatedMap != nil
+		isStaticIP = ovnNetworkAnnotatedMap != nil
 	}
 
 	// If pod already has annotations, just add the lsp with static ip/mac.
@@ -313,14 +313,14 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string
 		return ""
 	}
 
-        if !isDefaultPort && gatewayIP == "" {
-                mask, err = oc.getMaskFromSubnet(logicalSwitch)
-                if err != nil {
-                	logrus.Errorf("Error obtaining gateway address for switch %s", logicalSwitch)
-                	return ""
-        	}
+	if !isDefaultPort && gatewayIP == "" {
+		mask, err = oc.getMaskFromSubnet(logicalSwitch)
+		if err != nil {
+			logrus.Errorf("Error obtaining gateway address for switch %s", logicalSwitch)
+			return ""
+		}
 
-        }
+	}
 
 	count := 30
 	for count > 0 {
@@ -359,13 +359,13 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string
 		return ""
 	}
 
-    var newAnnotation string
+	var newAnnotation string
 	newAnnotation = fmt.Sprintf(`{\"ip_address\":\"%s/%s\", \"mac_address\":\"%s\", \"gateway_ip\": \"%s\"}`, addresses[1], mask, addresses[0], gatewayIP)
 	logrus.Debugf("Annotation values: ip=%s/%s ; mac=%s ; gw=%s\nAnnotation=%v", addresses[1], mask, addresses[0], gatewayIP, ovnNetworkAnnotatedMap)
 
 	oc.addPodToNamespaceAddressSet(pod.Namespace, addresses[1])
 
-	return newAnnotation 
+	return newAnnotation
 }
 
 // AddLogicalPortWithIP add logical port with static ip address
