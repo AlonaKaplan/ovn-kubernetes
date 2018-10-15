@@ -41,8 +41,14 @@ spec:
       # The network container launches the ovn-k8s-cni-overlay process, the kube-proxy, and the local DNS service.
       # It relies on an up to date node-config.yaml being present.
       - name: ovnkube
-        # This is an official build
-        image: "brew-pulp-docker01.web.prod.ext.phx2.redhat.com:8888/openshift3/ose-ovn-kubernetes:v3.11.0-123483"
+        # This is the community build
+        image: "docker.io/ovnkube/ovn-daemonset:latest"
+        # This is an official redhat build
+        # image: "registry.access.redhat.com/openshift3/ose-ovn-kubernetes:v3.11"
+        # This is an official (internal) redhat build
+        # image: "brew-pulp-docker01.web.prod.ext.phx2.redhat.com:8888/openshift3/ose-ovn-kubernetes:v3.11"
+        # This is an official image on aws
+        # image: "registry.reg-aws.openshift.com:443/openshift3/ose-ovn-kubernetes:v3.11"
         # This is development build image
         # image: "quay.io/pecameron/ovn-kube:latest"
         # imagePullPolicy: "Always"
@@ -135,6 +141,7 @@ spec:
         lifecycle:
       nodeSelector:
         node-role.kubernetes.io/compute: "true"
+        beta.kubernetes.io/os: "linux"
       volumes:
       # In bootstrap mode, the host config contains information not easily available
       # from other locations.

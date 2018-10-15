@@ -78,6 +78,7 @@ func (ovn *Controller) AddEndpoints(ep *kapi.Endpoints) error {
 						continue
 					}
 				}
+				ovn.handleExternalIPs(svc, svcPort, ips, targetPort)
 			}
 		}
 	}
@@ -107,10 +108,29 @@ func (ovn *Controller) AddEndpoints(ep *kapi.Endpoints) error {
 						continue
 					}
 				}
+				ovn.handleExternalIPs(svc, svcPort, ips, targetPort)
 			}
 		}
 	}
 	return nil
+}
+
+func (ovn *Controller) handleExternalIPs(svc *kapi.Service, svcPort kapi.ServicePort, ips []string, targetPort int32) {
+	logrus.Debugf("handling external IPs for svc %v", svc.Name)
+	if len(svc.Spec.ExternalIPs) == 0 {
+		return
+	}
+	for _, extIP := range svc.Spec.ExternalIPs {
+		lb := ovn.getDefaultGatewayLoadBalancer(svcPort.Protocol)
+		if lb == "" {
+			logrus.Warningf("No default gateway found for protocol %s\n\tNote: 'nodeport' flag needs to be enabled for default gateway", svcPort.Protocol)
+			continue
+		}
+		err := ovn.createLoadBalancerVIP(lb, extIP, svcPort.Port, ips, targetPort)
+		if err != nil {
+			logrus.Errorf("Error in creating external IP for service: %s, externalIP: %s", svc.Name, extIP)
+		}
+	}
 }
 
 func (ovn *Controller) deleteEndpoints(ep *kapi.Endpoints) error {
