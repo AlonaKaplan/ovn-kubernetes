@@ -260,20 +260,20 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string
 	logrus.Debugf("Creating logical port for %s on switch %s", portName, logicalSwitch)
 
 	var ovnNetworkAnnotatedMap map[string]string
-	var isStaticIP bool
+	var isStatic bool
 	if isDefaultPort {
 		var annotation string
-		annotation, isStaticIP = pod.Annotations["ovn"]
+		annotation, isStatic = pod.Annotations["ovn"]
 		ovnNetworkAnnotatedMap = oc.getOvnAnnotationMap(annotation)
 	} else {
 		ovnExtraAnnotation, _ := pod.Annotations["ovn_extra"]
 		ovnNetworkAnnotatedMap = oc.getNetworkInfoFromOvnAnnotation(ovnExtraAnnotation, logicalSwitch)
-		isStaticIP = ovnNetworkAnnotatedMap != nil
+		isStatic = ovnNetworkAnnotatedMap != nil
 	}
 
 	// If pod already has annotations, just add the lsp with static ip/mac.
 	// Else, create the lsp with dynamic addresses.
-	if isStaticIP {
+	if isStatic {
 		ipAddress := oc.getIPFromOvnAnnotationMap(ovnNetworkAnnotatedMap)
 		macAddress := oc.getMacFromOvnAnnotationMap(ovnNetworkAnnotatedMap)
 
@@ -315,15 +315,14 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string
 	if !isDefaultPort && gatewayIP == "" {
 		mask, err = oc.getMaskFromSubnet(logicalSwitch)
 		if err != nil {
-			logrus.Errorf("Error obtaining gateway address for switch %s", logicalSwitch)
-			return ""
+			logrus.Warning("Obtaining subnet mask for switch %s faild", logicalSwitch)
 		}
 
 	}
 
 	count := 30
 	for count > 0 {
-		if isStaticIP {
+		if isStatic {
 			out, stderr, err = util.RunOVNNbctlHA("get",
 				"logical_switch_port", portName, "addresses")
 		} else {
@@ -347,20 +346,26 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string
 		return ""
 	}
 
-	// static addresses have format ["0a:00:00:00:00:01 192.168.1.3"], while
+	// static addresses have format ["0a:00:00:00:00:01 192.168.1.3"], or
+    // ["0a:00:00:00:00:01 ] in the case that only MAC was statically set, while
 	// dynamic addresses have format "0a:00:00:00:00:01 192.168.1.3".
 	outStr := strings.TrimLeft(out, `[`)
 	outStr = strings.TrimRight(outStr, `]`)
 	outStr = strings.Trim(outStr, `"`)
 	addresses := strings.Split(outStr, " ")
 	if len(addresses) != 2 {
-		logrus.Errorf("Error while obtaining addresses for %s", portName)
+		logrus.Errorf("Malformed addresses %s for %s", out, portName)
 		return ""
 	}
 
 	var newAnnotation string
-	newAnnotation = fmt.Sprintf(`{\"ip_address\":\"%s/%s\", \"mac_address\":\"%s\", \"gateway_ip\": \"%s\"}`, addresses[1], mask, addresses[0], gatewayIP)
-	logrus.Debugf("Annotation values: ip=%s/%s ; mac=%s ; gw=%s\nAnnotation=%v", addresses[1], mask, addresses[0], gatewayIP, ovnNetworkAnnotatedMap)
+    cidr := ""
+    if addresses[1] != "" && mask != ""{
+        cidr = fmt.Sprintf("%s/%s", addresses[1], mask)
+    }
+
+	newAnnotation = fmt.Sprintf(`{\"ip_address\":\"%s\", \"mac_address\":\"%s\", \"gateway_ip\": \"%s\"}`, cidr, addresses[0], gatewayIP)
+	logrus.Debugf("Annotation values: ip=%s; mac=%s; gw=%s; Annotation=%s", cidr, addresses[0], gatewayIP, newAnnotation)
 
 	oc.addPodToNamespaceAddressSet(pod.Namespace, addresses[1])
 

@@ -139,7 +139,7 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 	macAddress := ovnNetworkAnnotatedMap["mac_address"]
 	gatewayIP := ovnNetworkAnnotatedMap["gateway_ip"]
 
-	if ipAddress == "" || macAddress == "" || (isDefaultInterface && gatewayIP == "") {
+	if macAddress == "" || (isDefaultInterface && gatewayIP == "") {
 		logrus.Errorf("failed in pod annotation key extract")
 		return nil
 	}
@@ -158,25 +158,28 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 	}
 
 	// Build the result structure to pass back to the runtime
-	addr, addrNet, err := net.ParseCIDR(ipAddress)
-	if err != nil {
-		logrus.Errorf("failed to parse IP address %q: %v", ipAddress, err)
-		return nil
-	}
-	ipVersion := "6"
-	if addr.To4() != nil {
-		ipVersion = "4"
-	}
 	result := &current.Result{
 		Interfaces: interfacesArray,
-		IPs: []*current.IPConfig{
+    }
+
+    if ipAddress != "" {
+        addr, addrNet, err := net.ParseCIDR(ipAddress)
+        if err != nil {
+            logrus.Errorf("failed to parse IP address %q: %v", ipAddress, err)
+            return nil
+        }
+        ipVersion := "6"
+        if addr.To4() != nil {
+            ipVersion = "4"
+        }
+		result.IPs = []*current.IPConfig {
 			{
 				Version:   ipVersion,
 				Interface: current.Int(1),
 				Address:   net.IPNet{IP: addr, Mask: addrNet.Mask},
 				Gateway:   net.ParseIP(gatewayIP),
 			},
-		},
+		}
 	}
 
 	podResult := &PodResult{}

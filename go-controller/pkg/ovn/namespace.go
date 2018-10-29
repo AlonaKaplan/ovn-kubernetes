@@ -52,6 +52,10 @@ func (oc *Controller) addPodToNamespaceAddressSet(ns, address string) {
 		return
 	}
 
+    if address == "" {
+		return
+	}
+
 	oc.namespaceMutex[ns].Lock()
 	defer oc.namespaceMutex[ns].Unlock()
 
