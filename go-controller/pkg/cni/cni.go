@@ -141,7 +141,7 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 	macAddress := ovnNetworkAnnotatedMap["mac_address"]
 	gatewayIP := ovnNetworkAnnotatedMap["gateway_ip"]
 
-	if macAddress == "" || (isDefaultInterface && gatewayIP == "") {
+	if macAddress == "" || (isDefaultInterface && (ipAddress == "" || gatewayIP == "")) {
 		logrus.Errorf("failed in pod annotation key extract")
 		return nil
 	}

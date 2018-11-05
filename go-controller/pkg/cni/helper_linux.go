@@ -79,7 +79,7 @@ func setupInterface(netns ns.NetNS, hostIfaceName, ifName, macAddress, ipAddress
 
         if gatewayIP != "" {
     		gw := net.ParseIP(gatewayIP)
-	    	if gw == nil && isDefaultInterface {
+	    	if gw == nil {
 		    	return fmt.Errorf("parse ip of gateway failed")
 	    	}
 	    	if gw != nil {
