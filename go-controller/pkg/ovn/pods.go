@@ -230,9 +230,10 @@ func (oc *Controller) deleteLogicalPort(pod *kapi.Pod) {
 	return
 }
 
-func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string {
+func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) (newAnnotation string) {
 	var out, stderr string
 	var err error
+
 	if pod.Spec.HostNetwork {
 		return ""
 	}
@@ -320,6 +321,15 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string
 
 	}
 
+	if !isDefaultPort && gatewayIP == "" {
+		mask, err = oc.getMaskFromSubnet(logicalSwitch)
+		if err != nil {
+			logrus.Errorf("Error obtaining gateway address for switch %s", logicalSwitch)
+			return
+		}
+
+	}
+
 	count := 30
 	for count > 0 {
 		if isStatic {
@@ -358,7 +368,6 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod, logicalSwitch string) string
 		return ""
 	}
 
-	var newAnnotation string
     cidr := ""
     if addresses[1] != "" && mask != ""{
         cidr = fmt.Sprintf("%s/%s", addresses[1], mask)

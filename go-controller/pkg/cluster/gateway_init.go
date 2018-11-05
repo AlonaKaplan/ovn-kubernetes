@@ -83,6 +83,11 @@ func generateGatewayNATRules(ifname string, ip string) []iptRule {
 		args: []string{"-o", ifname, "-m", "conntrack", "--ctstate",
 			"RELATED,ESTABLISHED", "-j", "ACCEPT"},
 	})
+	rules = append(rules, iptRule{
+		table: "filter",
+		chain: "INPUT",
+		args:  []string{"-i", ifname, "-m", "comment", "--comment", "from OVN to localhost", "-j", "ACCEPT"},
+	})
 
 	// NAT for the interface
 	rules = append(rules, iptRule{
@@ -376,7 +381,7 @@ func (cluster *OvnClusterController) nodePortWatcher() error {
 }
 
 func (cluster *OvnClusterController) initGateway(
-	nodeName, clusterIPSubnet, subnet string) error {
+	nodeName string, clusterIPSubnet []string, subnet string) error {
 	if cluster.LocalnetGateway {
 		// Create a localnet OVS bridge.
 		localnetBridgeName := "br-localnet"

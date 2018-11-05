@@ -14,13 +14,12 @@ import (
 
 // OvnClusterController is the object holder for utilities meant for cluster management
 type OvnClusterController struct {
-	Kube                  kube.Interface
-	watchFactory          *factory.WatchFactory
-	masterSubnetAllocator *netutils.SubnetAllocator
+	Kube                      kube.Interface
+	watchFactory              *factory.WatchFactory
+	masterSubnetAllocatorList []*netutils.SubnetAllocator
 
-	ClusterIPNet          *net.IPNet
 	ClusterServicesSubnet string
-	HostSubnetLength      uint32
+	ClusterIPNet          []CIDRNetworkEntry
 
 	GatewayInit      bool
 	GatewayIntf      string
@@ -30,6 +29,12 @@ type OvnClusterController struct {
 	NodePortEnable   bool
 	OvnHA            bool
 	LocalnetGateway  bool
+}
+
+// CIDRNetworkEntry is the object that holds the definition for a single network CIDR range
+type CIDRNetworkEntry struct {
+	CIDR             *net.IPNet
+	HostSubnetLength uint32
 }
 
 const (
@@ -71,6 +76,8 @@ func setOVSExternalIDs(nodeName string, ids ...string) error {
 		".",
 		fmt.Sprintf("external_ids:ovn-encap-type=%s", config.Default.EncapType),
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", nodeIP),
+		fmt.Sprintf("external_ids:ovn-remote-probe-interval=%d",
+			config.Default.InactivityProbe),
 	}
 	for _, str := range ids {
 		args = append(args, "external_ids:"+str)
@@ -82,7 +89,7 @@ func setOVSExternalIDs(nodeName string, ids ...string) error {
 	return nil
 }
 
-func setupOVNNode(nodeName, kubeServer, kubeToken, kubeCACert string) error {
+func setupOVNNode(nodeName string) error {
 	// Tell ovn-*bctl how to talk to the database
 	for _, auth := range []*config.OvnDBAuth{
 		config.OvnNorth.ClientAuth,

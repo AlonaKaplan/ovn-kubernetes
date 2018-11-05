@@ -27,6 +27,10 @@ type Controller struct {
 	// cluster's east-west traffic.
 	loadbalancerClusterCache map[string]string
 
+	// For TCP and UDP type traffice, cache OVN load balancer that exists on the
+	// default gateway
+	loadbalancerGWCache map[string]string
+
 	// A cache of all logical switches seen by the watcher
 	logicalSwitchCache map[string]bool
 
@@ -93,6 +97,7 @@ func NewOvnController(kubeClient kubernetes.Interface, wf *factory.WatchFactory,
 		lspMutex:                 &sync.Mutex{},
 		gatewayCache:             make(map[string]string),
 		loadbalancerClusterCache: make(map[string]string),
+		loadbalancerGWCache:      make(map[string]string),
 		nodePortEnable:           nodePortEnable,
 	}
 }
@@ -115,6 +120,10 @@ func (oc *Controller) Run() error {
 
 func (oc *Controller) addDefaultLogicalPort(pod *kapi.Pod) {
 	annotation := oc.addLogicalPort(pod, pod.Spec.NodeName)
+	if annotation == "" {
+		return
+	}
+
 	_, isStaticIP := pod.Annotations["ovn"]
 	if !isStaticIP {
 		err := oc.kube.SetAnnotationOnPod(pod, "ovn", annotation)
@@ -134,6 +143,9 @@ func (oc *Controller) addLogicalPortsToExtraSwitches(pod *kapi.Pod) {
 
 		ovnExtraAnnotation := fmt.Sprintf("{")
 		for network, networkAnnotation := range annotations {
+			if networkAnnotation == "" {
+				continue
+			}
 			ovnExtraAnnotation = fmt.Sprintf("%s\\\"%s\\\":%s, ", ovnExtraAnnotation, network, networkAnnotation)
 		}
 
@@ -142,7 +154,7 @@ func (oc *Controller) addLogicalPortsToExtraSwitches(pod *kapi.Pod) {
 
 		err := oc.kube.SetAnnotationOnPod(pod, "ovn_extra", ovnExtraAnnotation)
 		if err != nil {
-			logrus.Errorf("Failed to set annotation on pod %s - %v", pod.Name, err)
+			logrus.Errorf("Failed to set annotation on pod %s : %v", pod.Name, err)
 		}
 	}
 }

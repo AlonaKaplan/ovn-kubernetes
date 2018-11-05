@@ -65,7 +65,7 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 	networkName := pr.CNIConf.Name
 	logrus.Infof("Adding interface for network = %s", networkName)
 
-	if namespace == "" || podName == "" {
+	if namespace == "" || podName == "" || networkName == "" {
 		logrus.Errorf("required CNI variable missing")
 		return nil
 	}
@@ -103,11 +103,9 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 		return nil
 	}
 
-	var ovnAnnotation string
-	var ok bool
 	var ovnNetworkAnnotatedMap map[string]string
 	if isDefaultInterface {
-		ovnAnnotation, ok = annotation[ovnAnnotationKey]
+		ovnAnnotation, ok := annotation[ovnAnnotationKey]
 		if !ok {
 			logrus.Errorf("failed to get ovn annotation from pod")
 			return nil
@@ -115,7 +113,7 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 
 		err = json.Unmarshal([]byte(ovnAnnotation), &ovnNetworkAnnotatedMap)
 		if err != nil {
-			logrus.Errorf("unmarshal ovn annotation failed")
+			logrus.Errorf("failed to unmarshal ovn annotation: %v", err)
 			return nil
 		}
 	} else {
@@ -128,11 +126,15 @@ func (pr *PodRequest) cmdAdd() *PodResult {
 
 		err = json.Unmarshal([]byte(ovnExtraAnnotation), &ovnExtraAnnotatedMap)
 		if err != nil {
-			logrus.Errorf("unmarshal ovn_extra annotation failed = %v", err)
+			logrus.Errorf("failed to unmarshal ovn_extra annotation: %v", err)
 			return nil
 		}
 
 		ovnNetworkAnnotatedMap, ok = ovnExtraAnnotatedMap[networkName]
+		if !ok {
+			logrus.Errorf("failed to get the information of network %s from pod's ovn_extra annotation", networkName)
+			return nil
+		}
 	}
 
 	ipAddress := ovnNetworkAnnotatedMap["ip_address"]

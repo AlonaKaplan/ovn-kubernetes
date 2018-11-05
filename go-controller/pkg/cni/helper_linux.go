@@ -108,7 +108,6 @@ func setupInterface(netns ns.NetNS, hostIfaceName, ifName, macAddress, ipAddress
 }
 
 // ConfigureInterface sets up the container interface
-// TODO alona update the window_helper
 func (pr *PodRequest) ConfigureInterface(namespace string, podName string, networkName string, macAddress string, ipAddress string, gatewayIP string, mtu int, ingress, egress int64) ([]*current.Interface, error) {
 	netns, err := ns.GetNS(pr.Netns)
 	if err != nil {
@@ -116,7 +115,7 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, netwo
 	}
 	defer netns.Close()
 
-	isDefaultInterface := networkName == "ovn-kubernetes"
+	isDefaultInterface := isDefaultInterface(networkName)
 	var ifaceID string
 	var hostIfaceName string
 	if isDefaultInterface {
@@ -150,22 +149,23 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, netwo
 		return nil, fmt.Errorf("failure in plugging pod interface: %v\n  %q", err, out)
 	}
 
-	if err := clearPodBandwidth(pr.SandboxID); err != nil {
-		return nil, err
-	}
-	if ingress > 0 || egress > 0 {
-		l, err := netlink.LinkByName(hostIface.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to find host veth interface %s: %v", hostIface.Name, err)
-		}
-		err = netlink.LinkSetTxQLen(l, 1000)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set host veth txqlen: %v", err)
-		}
-
-		// TODO Alona - port name should be used instead of SandboxID
-		if err := setPodBandwidth(pr.SandboxID, hostIface.Name, ingress, egress); err != nil {
+	if isDefaultInterface {
+		if err := clearPodBandwidth(pr.SandboxID); err != nil {
 			return nil, err
+		}
+		if ingress > 0 || egress > 0 {
+			l, err := netlink.LinkByName(hostIface.Name)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find host veth interface %s: %v", hostIface.Name, err)
+			}
+			err = netlink.LinkSetTxQLen(l, 1000)
+			if err != nil {
+				return nil, fmt.Errorf("failed to set host veth txqlen: %v", err)
+			}
+
+			if err := setPodBandwidth(pr.SandboxID, hostIface.Name, ingress, egress); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -176,15 +176,16 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, netwo
 func (pr *PodRequest) PlatformSpecificCleanup() error {
 	networkName := pr.CNIConf.Name
 	var portList []string
-	if networkName == "ovn-kubernetes" {
+	isDefaultInterface := isDefaultInterface(networkName)
+	if isDefaultInterface {
 		portList = make([]string, 1)
 		portList[0] = pr.SandboxID[:15]
 	} else {
 		var err error
 		ifaceName := fmt.Sprintf("%s_%s_%s", pr.PodNamespace, pr.PodName, networkName)
-		portList, err = ovsFind("interface", "name", "external-ids:iface-id="+ifaceName)
+		portList, err = ovsFind("interface", "name", fmt.Sprintf("external-ids:iface-id=%s", ifaceName))
 		if err != nil {
-			logrus.Infof("failed to find OVS port with external-ids:iface-id:=%s  %v", ifaceName, err)
+			logrus.Infof("failed to find OVS port with external-ids:iface-id: %s  error: %v", ifaceName, err)
 		}
 	}
 
@@ -199,8 +200,13 @@ func (pr *PodRequest) PlatformSpecificCleanup() error {
 		}
 	}
 
-	// TODO Alona - port name should be used instead of SandboxID
-	_ = clearPodBandwidth(pr.SandboxID)
+	if isDefaultInterface {
+		_ = clearPodBandwidth(pr.SandboxID)
+	}
 
 	return nil
+}
+
+func isDefaultInterface(networkName string) bool {
+	return networkName == "ovn-kubernetes"
 }

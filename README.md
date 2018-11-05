@@ -124,6 +124,7 @@ uses the hostname.  kubelet allows this name to be overridden with
  -cluster-subnet="$CLUSTER_IP_SUBNET" \
  -service-cluster-ip-range=$SERVICE_IP_SUBNET \
  -nodeport \
+ -init-gateways -gateway-localnet \
  -k8s-token="$TOKEN" \
  -nb-address="tcp://$CENTRAL_IP:6641" \
  -sb-address="tcp://$CENTRAL_IP:6642" 2>&1 &
@@ -243,3 +244,4 @@ does install kubernetes in its simplest form.
 [INSTALL.SSL.md]: docs/INSTALL.SSL.md
 [config.md]: docs/config.md
 [HA.md]: docs/ha.md
+

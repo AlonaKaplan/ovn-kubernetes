@@ -58,17 +58,17 @@ var _ = Describe("Node Operations", func() {
 
 	It("sets correct OVN external IDs", func() {
 		app.Action = func(ctx *cli.Context) error {
-			cacert, err := createTempFile("kube-cacert.pem")
-			Expect(err).NotTo(HaveOccurred())
-
 			const (
-				nodeName  string = "1.2.5.6"
-				apiserver string = "https://1.2.3.4:8080"
-				token     string = "adsfadsfasdfasdfasfaf"
+				nodeName string = "1.2.5.6"
+				interval int    = 100000
 			)
 
 			fakeCmds := ovntest.AddFakeCmd(nil, &ovntest.ExpectedCmd{
-				Cmd: "ovs-vsctl --timeout=15 set Open_vSwitch . external_ids:ovn-encap-type=geneve external_ids:ovn-encap-ip=" + nodeName,
+				Cmd: fmt.Sprintf("ovs-vsctl --timeout=15 set Open_vSwitch . "+
+					"external_ids:ovn-encap-type=geneve "+
+					"external_ids:ovn-encap-ip=%s "+
+					"external_ids:ovn-remote-probe-interval=%d",
+					nodeName, interval),
 			})
 
 			fexec := &fakeexec.FakeExec{
@@ -78,13 +78,13 @@ var _ = Describe("Node Operations", func() {
 				},
 			}
 
-			err = util.SetExec(fexec)
+			err := util.SetExec(fexec)
 			Expect(err).NotTo(HaveOccurred())
 
 			_, err = config.InitConfig(ctx, fexec, nil)
 			Expect(err).NotTo(HaveOccurred())
 
-			err = setupOVNNode(nodeName, apiserver, token, cacert)
+			err = setupOVNNode(nodeName)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(fexec.CommandCalls).To(Equal(len(fakeCmds)))

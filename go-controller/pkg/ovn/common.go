@@ -259,9 +259,16 @@ func (oc *Controller) getNetworkInfoFromOvnAnnotation(ovnAnnotation string, netw
 }
 
 func (oc *Controller) getNetworkNamesFromPodAnnotations(podAnnotations map[string]string) []string {
-	switches_annotation, hasExtraSwitches := podAnnotations["switches"]
+	switchesAnnotation, hasExtraSwitches := podAnnotations["switches"]
+
 	if hasExtraSwitches {
-		switches := strings.Split(switches_annotation, ",") // TODO trim each switch
+		var switches []string
+		err := json.Unmarshal([]byte(switchesAnnotation), &switches)
+
+		if err != nil {
+			logrus.Errorf("Error in json unmarshaling switches annotation  (%v)", err)
+			return nil
+		}
 		return switches
 	}
 	return nil
