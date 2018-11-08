@@ -66,25 +66,29 @@ func setupInterface(netns ns.NetNS, hostIfaceName, ifName, macAddress, ipAddress
 		contIface.Mac = macAddress
 		contIface.Sandbox = netns.Path()
 
-		addr, err := netlink.ParseAddr(ipAddress)
-		if err != nil {
-			return err
-		}
-		err = netlink.AddrAdd(link, addr)
-		if err != nil {
-			return fmt.Errorf("failed to add IP addr %s to %s: %v", ipAddress, contIface.Name, err)
-		}
+        if ipAddress != "" {
+		    addr, err := netlink.ParseAddr(ipAddress)
+		    if err != nil {
+			    return err
+		    }
+		    err = netlink.AddrAdd(link, addr)
+		    if err != nil {
+			    return fmt.Errorf("failed to add IP addr %s to %s: %v", ipAddress, contIface.Name, err)
+		    }
+        }
 
-		gw := net.ParseIP(gatewayIP)
-		if gw == nil && isDefaultInterface {
-			return fmt.Errorf("parse ip of gateway failed")
-		}
-		if gw != nil {
-			err = ip.AddRoute(nil, gw, link)
-			if err != nil {
-				return err
-			}
-		}
+        if gatewayIP != "" {
+    		gw := net.ParseIP(gatewayIP)
+	    	if gw == nil {
+		    	return fmt.Errorf("parse ip of gateway failed")
+	    	}
+	    	if gw != nil {
+		    	err = ip.AddRoute(nil, gw, link)
+			    if err != nil {
+		    		return err
+		    	}
+	    	}
+        }
 
 		oldHostVethName = hostVeth.Name
 
@@ -130,14 +134,17 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, netwo
 		return nil, err
 	}
 
-	ovsArgs := []string{
-		"add-port", "br-int", hostIface.Name, "--", "set",
-		"interface", hostIface.Name,
-		fmt.Sprintf("external_ids:attached_mac=%s", macAddress),
-		fmt.Sprintf("external_ids:iface-id=%s", ifaceID),
-		fmt.Sprintf("external_ids:ip_address=%s", ipAddress),
-		fmt.Sprintf("external_ids:sandbox=%s", pr.SandboxID),
-	}
+    ovsArgs := []string{
+        "add-port", "br-int", hostIface.Name, "--", "set",
+        "interface", hostIface.Name,
+        fmt.Sprintf("external_ids:attached_mac=%s", macAddress),
+        fmt.Sprintf("external_ids:iface-id=%s", ifaceID),
+        fmt.Sprintf("external_ids:sandbox=%s", pr.SandboxID),
+    }
+    if ipAddress != "" {
+        ovsArgs = append(ovsArgs, fmt.Sprintf("external_ids:ip_address=%s", ipAddress))
+    }
+
 	if out, err := ovsExec(ovsArgs...); err != nil {
 		return nil, fmt.Errorf("failure in plugging pod interface: %v\n  %q", err, out)
 	}

@@ -236,7 +236,7 @@ func (oc *Controller) getOvnAnnotationMap(ovnAnnotation string) map[string]strin
 	var ovnAnnotationMap map[string]string
 	err := json.Unmarshal([]byte(ovnAnnotation), &ovnAnnotationMap)
 	if err != nil {
-		logrus.Errorf("Error in json unmarshaling ovn annotation (%v)", err)
+        logrus.Errorf("Error in json unmarshaling ovn annotation (%s) due to (%v)", ovnAnnotation, err)
 		return nil
 	}
 	return ovnAnnotationMap
@@ -244,13 +244,14 @@ func (oc *Controller) getOvnAnnotationMap(ovnAnnotation string) map[string]strin
 
 func (oc *Controller) getNetworkInfoFromOvnAnnotation(ovnAnnotation string, networkName string) map[string]string {
 	if ovnAnnotation == "" {
+		logrus.Errorf("Missing ovn_extra annotation for (%s)", networkName)
 		return nil
 	}
 
 	var ovnExtraAnnotationMap map[string]map[string]string
 	err := json.Unmarshal([]byte(ovnAnnotation), &ovnExtraAnnotationMap)
 	if err != nil {
-		logrus.Errorf("Error in json unmarshaling ovn annotation  (%v)", err)
+		logrus.Errorf("Error in json unmarshaling ovn_extra annotation (%s) for (%s) due to (%v)", ovnAnnotation, networkName, err)
 		return nil
 	}
 
