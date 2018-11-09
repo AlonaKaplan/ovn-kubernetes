@@ -25,7 +25,7 @@ func (oc *Controller) syncPods(pods []interface{}) {
 		logicalPort := fmt.Sprintf("%s_%s", pod.Namespace, pod.Name)
 		expectedLogicalPorts[logicalPort] = true
 
-		switches := oc.getNetworkNamesFromPodAnnotations(pod.Annotations)
+		switches := oc.getNetworkNamesFromPodAnnotations(pod.Annotations, pod.Namespace)
 		if switches != nil {
 			for _, logicalSwitch := range switches {
 				logicalPort := fmt.Sprintf("%s_%s_%s", pod.Namespace, pod.Name, logicalSwitch)
@@ -185,7 +185,7 @@ func (oc *Controller) deleteLogicalPort(pod *kapi.Pod) {
 	logrus.Infof("Deleting pod: %s", pod.Name)
 
 	podLogicalPorts := make(map[string]string)
-	switches := oc.getNetworkNamesFromPodAnnotations(pod.Annotations)
+	switches := oc.getNetworkNamesFromPodAnnotations(pod.Annotations, pod.Namespace)
 	if switches != nil {
 		for _, logicalSwitch := range switches {
 			podLogicalPorts[logicalSwitch] = fmt.Sprintf("%s_%s_%s", pod.Namespace, pod.Name, logicalSwitch)
